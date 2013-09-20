@@ -1,7 +1,7 @@
 #include "includes.h"
 
 #define MAXLINE 1024
-#define PORT 9873
+#define PORT 8504
 #define DEBUG 1
 
 // ***************************************************************************
@@ -75,13 +75,13 @@ bool send404(int sockfd)
 // *      statments for debugging when I know there will be just one thread
 // *      but once you are processing multiple rquests it might cause problems.
 // ***************************************************************************
-void* processRequest(void *arg)
+void* processRequest(void* arg)
 {
 	// *******************************************************
 	// * This is a little bit of a cheat, but if you end up
 	// * with a FD of more than 64 bits you are in trouble
 	// *******************************************************
-	int sockfd = (long)arg;
+	int sockfd = *((long*)arg);
 	if (DEBUG)
 	{
 		cout << "We are in the thread with fd = " << sockfd << endl;
@@ -155,31 +155,48 @@ void* processRequest(void *arg)
 // ***************************************************************************
 int main(int argc, char **argv)
 {
-   if (argc != 1)
-   {
-		cout << "Usage: " << argv[0] << endl;
-		exit(-1);
-	}
+	// if (argc != 1)
+	// {
+	// 	cout << "Usage: " << argv[0] << endl;
+	// 	exit(-1);
+	// }
 
 	// *******************************************************************
 	// * Creating the inital socket is the same as in a client.
 	// ********************************************************************
 	int listenfd = -1;
+	if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+	{
+		cout << "socket() failed: " << strerror(errno) << endl;;
+		exit(1);
+	}
 
 	// ********************************************************************
 	// * The same address structure is used, however we use a wildcard
 	// * for the IP address since we don't know who will be connecting.
 	// ********************************************************************
 	struct sockaddr_in servaddr;
+	memset(&servaddr, 0, sizeof(servaddr));
+	servaddr.sin_family = AF_INET;
+	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	servaddr.sin_port = htons(PORT);
+
+	int optval = 1;
+	setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof optval);
 
 	// ********************************************************************
 	// * Binding configures the socket with the parameters we have
 	// * specified in the servaddr structure.  This step is implicit in
 	// * the connect() call, but must be explicitly listed for servers.
 	// ********************************************************************
+	if (bind(listenfd, (sockaddr*) &servaddr, sizeof(servaddr)) == -1)
+	{
+		cerr << "bind() failed: " << strerror(errno) << endl;;
+		exit(1);
+	}
 	if (DEBUG)
 	{
-		cout << "Process has bound fd " << listenfd << " to port " << PORT << endl;
+		cerr << "Process has bound fd " << listenfd << " to port " << PORT << endl;
 	}
 
 	// ********************************************************************
@@ -187,6 +204,12 @@ int main(int argc, char **argv)
 	// * needed to being accepting connections.  This creates a que for
 	// * connections and starts the kernel listening for connections.
     // ********************************************************************
+    int listenqueue = 1;
+    if (listen(listenfd, listenqueue) == -1)
+    {
+    	cerr << "listen() failed: " << strerror(errno) << endl;;
+    	exit(1);
+    }
 	if (DEBUG)
 	{
 		cout << "We are now listening for new connections" << endl;
@@ -205,14 +228,20 @@ int main(int argc, char **argv)
 			cout << "Calling accept() in master thread." << endl;
 		}
 		int connfd = -1;
+		if ((connfd = accept(listenfd, (sockaddr*)NULL, NULL)) == -1)
+		{
+			cerr << "accept() failed: " << strerror(errno) << endl;
+		}
 	
 		if (DEBUG)
 		{
 			cout << "Spawing new thread to handle connect on fd = " << connfd << endl;
 		}
+		int* cfd = (int*)malloc(sizeof(int));
+		*cfd = connfd;
 
 		pthread_t* threadID = new pthread_t;
-		pthread_create(threadID, NULL, processRequest, &connfd);
+		pthread_create(threadID, NULL, processRequest, (void*) cfd);
 		threads.insert(threadID);
 	}
 }
