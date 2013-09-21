@@ -13,6 +13,37 @@
 // ***************************************************************************
 string readGetRequest(int sockfd)
 {
+	int available = 0;
+	int charsRead = 0;
+	bool started = false;
+	bool done = false;
+	char c[256];
+	stringstream ss;
+
+	while (!started)
+	{
+		ioctl(sockfd, FIONREAD, &available);
+		if (available > 0)
+		{
+			started = true;
+		}
+	}
+	while (!done)
+	{
+		ioctl(sockfd, FIONREAD, &available);
+		if (available > 0)
+		{
+			if ((charsRead = read(sockfd, c, min(256, available))) > 0)
+			{
+				ss.write(c, charsRead);
+			}
+		}
+		else
+		{
+			done = true;
+		}
+	}
+	return ss.str();
 }
 
 // ***************************************************************************
@@ -31,6 +62,7 @@ string readGetRequest(int sockfd)
 // ***************************************************************************
 string parseGET(string getRequest)
 {
+	return "";
 }
 
 // ***************************************************************************
@@ -40,6 +72,7 @@ string parseGET(string getRequest)
 // ***************************************************************************
 bool fileExists(string filename)
 {
+	return false;
 }
 
 // ***************************************************************************
@@ -49,6 +82,7 @@ bool fileExists(string filename)
 // ***************************************************************************
 bool sendHeader(int sockfd)
 {
+	return false;
 }
 
 // ***************************************************************************
@@ -57,6 +91,7 @@ bool sendHeader(int sockfd)
 // ***************************************************************************
 bool sendFile(int sockfd, string filename)
 {
+	return false;
 }
 
 // ***************************************************************************
@@ -65,6 +100,7 @@ bool sendFile(int sockfd, string filename)
 // ***************************************************************************
 bool send404(int sockfd)
 {
+	return false;
 }
 
 // ***************************************************************************
@@ -148,6 +184,7 @@ void* processRequest(void* arg)
 	{
 		cout << "Thread terminating" << endl;
 	}
+	free(arg);
 }
 
 // ***************************************************************************
@@ -235,7 +272,7 @@ int main(int argc, char **argv)
 	
 		if (DEBUG)
 		{
-			cout << "Spawing new thread to handle connect on fd = " << connfd << endl;
+			cout << "Spawning new thread to handle connect on fd = " << connfd << endl;
 		}
 		int* cfd = (int*)malloc(sizeof(int));
 		*cfd = connfd;

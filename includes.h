@@ -5,10 +5,12 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
+#include <sys/ioctl.h>
 
 #include <iostream>
 #include <string>
 #include <set>
 #include <cstdlib>
+#include <sstream>
 
 using namespace std;
