@@ -53,7 +53,6 @@ string readRequest(const int sockfd)
 }
 
 // Determine which resource the GET request is asking for
-// NOTE: No filesystem restrictions, and path is relative to current directory
 string parseGET(const string& getRequest)
 {
 	// Split tokens based on whitespace, path will be the second one
@@ -61,76 +60,36 @@ string parseGET(const string& getRequest)
 	string path = tokens[1];
 	// Replace HTML-encoded spaces
 	replaceAll(path, "%20", " ");
-	return getCurrentDirectory().append(path);
+	return path;
 }
 
-// ***************************************************************************
-// * sendHeader()
-// *  Send the content type and rest of the header. For this assignment you
-// *  only have to do TXT, HTML and JPG, but you can do others if you want.
-// ***************************************************************************
-bool sendHeader(const int sockfd, const string& path)
-{
-	// stringstream header;
-	// string type = path.substr(path.rfind('.'));
-	// cout << type << endl;
-
-	// cout << getFileSize(path) << endl;
-
-	// header << "HTTP/1.1 200 OK\r\n";
-	// if (strcasecmp(type.c_str(), ".txt") == 0)
-	// {
-	// 	header << "Content-Type: text/plain\r\n";
-	// 	header << "Content-Length: " << getFileSize(path) << "\r\n";
-	// }
-	// else if (strcasecmp(type.c_str(), ".html") == 0)
-	// {
-	// 	header << "Content-Type: text/html\r\n";
-	// 	header << "Content-Length: " << getFileSize(path) << "\r\n";
-	// }
-	// else if (strcasecmp(type.c_str(), ".jpg") == 0 || strcasecmp(type.c_str(), ".jpeg") == 0)
-	// {
-	// 	header << "Content-Type: image/jpeg\r\n";
-	// 	header << "Content-Length: " << getFileSize(path) << "\r\n";
-	// }
-	// else
-	// {
-	// 	// Kind of cheating, since this includes the body as well
-	// 	string message = "Sorry, I don't know how to send that type of file (yet).";
-	// 	header << "Content-Type: text/html\r\n";
-	// 	header << "Content-Length: " << message.length() << "\r\n";
-	// 	header << "\r\n\r\n" << message;
-	// 	return false;
-	// }
-}
-
-// ***************************************************************************
-// * sendFile(int sockfd,string filename)
-// *  Open the file, read it and send it.
-// ***************************************************************************
-bool sendFile(const int sockfd, const string& filename)
-{
-	return false;
-}
-
+// Build the HTTP response, headers and body
 void buildResponse(const string& path, stringstream& response)
 {
+	// Determine the type of resource requested
 	string type = path.substr(path.rfind('.'));
+	// Assume we know how to handle this type
 	bool knownType = true;
 
+	// Assume 200 OK
 	response << "HTTP/1.1 200 OK\r\n";
+
+	// Plain text
 	if (strcasecmp(type.c_str(), ".txt") == 0)
 	{
 		response << "Content-Type: text/plain\r\n";
 	}
+	// HTML
 	else if (strcasecmp(type.c_str(), ".html") == 0)
 	{
 		response << "Content-Type: text/html\r\n";
 	}
+	// JPEG
 	else if (strcasecmp(type.c_str(), ".jpg") == 0 || strcasecmp(type.c_str(), ".jpeg") == 0)
 	{
 		response << "Content-Type: image/jpeg\r\n";
 	}
+	// Something we don't know how to send yet
 	else
 	{
 		knownType = false;
@@ -140,28 +99,40 @@ void buildResponse(const string& path, stringstream& response)
 		response << message;
 	}
 
+	// If we know how to handle this type of resource, add it to the response
 	if (knownType)
 	{
 		response << "Content-Length: " << getFileSize(path.c_str()) << "\r\n\r\n";
 		vector<char> bytes = readAllBytes(path.c_str());
-		copy(bytes.begin(), bytes.end(), ostream_iterator<char>(response, ""));
+		copy(bytes.begin(), bytes.end(), ostream_iterator<char>(response));
 	}
-
-	cout << response.str() << endl;
 }
 
-void sendResponse(stringstream& response)
+// Write the response to the socket
+bool sendResponse(const int sockfd, stringstream& response)
 {
+	// Ensure that we're at the end of the stringstream before determining length
+	response.seekp(0, ios::end);
 
+	if (write(sockfd, response.str().c_str(), response.tellp()) < 0)
+	{
+		return false;
+	}
+	return true;
 }
 
-// ***************************************************************************
-// * send404(int sockfd)
-// *  Send the whole error page.  I can really say anything you like.
-// ***************************************************************************
-void send404(const int sockfd)
+// Build a 404 response
+void build404(const int sockfd, const string& path)
 {
+	string message = "<!DOCTYPE html><html><head><title>Resource does not exist</title></head><body>The requested resource " + path + " could not be found.</body></html>";
+	stringstream response;
 
+	response << "HTTP/1.1 404 Not Found\r\n";
+	response << "Content-Type: text/html\r\n";
+	response << "Content-Length: " << message.length() << "\r\n\n";
+	response << message;
+
+	sendResponse(sockfd, response);
 }
 
 // Processes incoming request, delegates to the appropriate functions
@@ -184,12 +155,14 @@ void* processRequest(void* arg)
 	// Split the request by line and determine the type
 	vector<string> reqLines = split(request, '\n');
 	string reqType = reqLines.front();
+	stringstream response;
 
 	// GET
 	if (reqType.find("GET") != string::npos)
 	{
 		// Parse out the requested resource
-		string requestedPath = parseGET(reqType);
+		string localPath = parseGET(reqType);
+		string requestedPath = getCurrentDirectory().append(localPath);
 		if (DEBUG)
 		{
 			cout << "The requested resource is " << requestedPath << endl;
@@ -209,41 +182,29 @@ void* processRequest(void* arg)
 		else if (isFile(requestedPath))
 		{
 			cout << "That's a file, sending it" << endl;
-			stringstream response;
+
+			// Create the response with headers and body content
 			buildResponse(requestedPath, response);
-			sendResponse(response);
-
-
-			// Build & send the header.
-			sendHeader(sockfd, requestedPath);
-			if (DEBUG)
-			{
-				cout << "Header sent" << endl;
-			}
-
-			// *******************************************************
-			// * Send the file
-			// *******************************************************
-			sendFile(sockfd, requestedPath);
-			if (DEBUG)
-			{
-				cout << "File sent" << endl;
-			}
 		}
+		// If it's not a valid file or directory, send an error message
 		else
 		{
-			// *******************************************************
-			// * Send an error message 
-			// *******************************************************
 			if (DEBUG)
 			{
-				cout << "File " << requestedPath << " does not exist." << endl;
+				cout << "Resource " << requestedPath << " does not exist." << endl;
 			}
-			send404(sockfd);
+			build404(sockfd, localPath);
 			if (DEBUG)
 			{
 				cout << "Error message sent." << endl;
 			}
+		}
+
+		// Send the response
+		sendResponse(sockfd, response);
+		if (DEBUG)
+		{
+			cout << "Response sent" << endl;
 		}
 	}
 
@@ -251,6 +212,8 @@ void* processRequest(void* arg)
 	{
 		cout << "Thread terminating" << endl;
 	}
+	// Close the socket
+	close(sockfd);
 	// Free the memory allocated for the FD
 	free(arg);
 }
