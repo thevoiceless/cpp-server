@@ -18,3 +18,18 @@ vector<string> split(const string &s, char delim)
 
     return tokens;
 }
+
+// http://stackoverflow.com/questions/3418231/replace-part-of-a-string-with-another-string/3418285#3418285
+void replaceAll(string& str, const string& from, const string& to)
+{
+    if (from.empty())
+        return;
+
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != string::npos)
+    {
+        str.replace(start_pos, from.length(), to);
+        // In case 'to' contains 'from', like replacing 'x' with 'yx'
+        start_pos += to.length();
+    }
+}

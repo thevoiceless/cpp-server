@@ -9,10 +9,10 @@
 string readRequest(const int sockfd)
 {
 	const int BUFSIZE = 256;
-	int available = 0;
-	int charsRead = 0;
-	bool started = false;
-	bool done = false;
+	int available     = 0;
+	int charsRead     = 0;
+	bool started      = false;
+	bool done         = false;
 	char c[BUFSIZE];
 	stringstream request;
 
@@ -52,22 +52,15 @@ string readRequest(const int sockfd)
 	return request.str();
 }
 
-// ***************************************************************************
-// * parseGET()
-// *  Parse the GET request line and find the filename.  Since HTTP requests
-// *  should always be relitive to a particular directory (so you don't 
-// *  accidently expose the whole filesystem) you should prepend a path
-// *  as well. In this case prepend "." to make the request relitive to
-// *  the current directory. 
-// *
-// *  Note that a real webserver will include other protections to keep
-// *  requests from traversing up the path, including but not limited to
-// *  using chroot.  Since we can't do that you must remember that as long
-// *  as your program is running anyone who knows what port you are using
-// *  could get any of your files.
-// ***************************************************************************
+// Determine which resource the GET request is asking for
+// NOTE: No filesystem restrictions, and path is relative to current directory
 string parseGET(const string& getRequest)
 {
+	vector<string> tokens = split(getRequest, ' ');
+	string path = tokens[1];
+	int startPos = 0;
+	replaceAll(path, "%20", " ");
+	cout << path << endl;
 	return "";
 }
 
@@ -135,7 +128,7 @@ void* processRequest(void* arg)
 	if (reqType.find("GET") != string::npos)
 	{
 		// Parse out the requested resource
-		string requestedFile = parseGET(request);
+		string requestedFile = parseGET(reqType);
 		if (DEBUG)
 		{
 			cout << "The file they want is " << requestedFile << endl;
