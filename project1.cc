@@ -119,10 +119,13 @@ void buildResponse(string& path, stringstream& response, bool isDirectory = fals
 		stringstream htmlBody;
 		htmlBody << "<h1>" << path << "</h1>";
 		htmlBody << "<ul>";
+		cout << "cwd " << cwd << endl;
+		cout << "path " << path << endl;
 		for (vector<string>::iterator i = contents.begin(); i != contents.end(); ++i)
 		{
 			string item = "<li>" + path + *i + "</li>";
 			// Aesthetics: Differentiate directories from files by appending a "/"
+			cout << "is " << cwd + path + *i << " a dir? " << isDir(cwd + path + *i) << endl;
 			string dirEndingSlash = isDir(cwd + path + *i) ? "/" : "";
 			// Link to the content
 			htmlBody << "<li><a href=\"" << path + *i << "\">" << *i + dirEndingSlash << "</a></li>";
@@ -177,8 +180,8 @@ void buildResponse(string& path, stringstream& response, bool isDirectory = fals
 		// If we know how to handle this type of resource, add it to the response
 		if (knownType)
 		{
-			response << "Content-Length: " << getFileSize(path.c_str()) << "\r\n\r\n";
-			vector<char> bytes = readAllBytes(path.c_str());
+			response << "Content-Length: " << getFileSize(path) << "\r\n\r\n";
+			vector<char> bytes = readAllBytes(path);
 			copy(bytes.begin(), bytes.end(), ostream_iterator<char>(response));
 		}
 	}

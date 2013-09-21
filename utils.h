@@ -109,18 +109,18 @@ vector<string> getDirectoryContents(const string& path, bool showHidden = false)
 
 // http://www.cplusplus.com/forum/windows/10853/#msg50985
 // Return the size (in bytes) of the given file
-long getFileSize(const char* path)
+long getFileSize(const string& path)
 {
 	struct stat filestatus;
-	stat(path, &filestatus);
+	stat(path.c_str(), &filestatus);
 	return filestatus.st_size;
 }
 
 // http://codereview.stackexchange.com/a/22907
 // Read and return all of the bytes in a file
-vector<char> readAllBytes(const char* filename)
+vector<char> readAllBytes(const string& filename)
 {
-    ifstream ifs(filename, ios::binary|ios::ate);
+    ifstream ifs(filename.c_str(), ios::binary|ios::ate);
     ifstream::pos_type pos = ifs.tellg();
 
     vector<char> result(pos);
