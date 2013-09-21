@@ -119,13 +119,10 @@ void buildResponse(string& path, stringstream& response, bool isDirectory = fals
 		stringstream htmlBody;
 		htmlBody << "<h1>" << path << "</h1>";
 		htmlBody << "<ul>";
-		cout << "cwd " << cwd << endl;
-		cout << "path " << path << endl;
 		for (vector<string>::iterator i = contents.begin(); i != contents.end(); ++i)
 		{
 			string item = "<li>" + path + *i + "</li>";
 			// Aesthetics: Differentiate directories from files by appending a "/"
-			cout << "is " << cwd + path + *i << " a dir? " << isDir(cwd + path + *i) << endl;
 			string dirEndingSlash = isDir(cwd + path + *i) ? "/" : "";
 			// Link to the content
 			htmlBody << "<li><a href=\"" << path + *i << "\">" << *i + dirEndingSlash << "</a></li>";
@@ -298,11 +295,20 @@ void* processRequest(void* arg)
 
 int main(int argc, char **argv)
 {
-	// if (argc != 1)
-	// {
-	// 	cout << "Usage: " << argv[0] << endl;
-	// 	exit(-1);
-	// }
+	if (argc != 1)
+	{
+		cout << "Usage: " << argv[0] << endl;
+		exit(-1);
+	}
+
+	if (DEBUG)
+	{
+		cout << "Debugging is ON" << endl;
+	}
+	else
+	{
+		cout << "Debugging is OFF" << endl;
+	}
 
 	// Create the inital socket
 	int listenfd = -1;

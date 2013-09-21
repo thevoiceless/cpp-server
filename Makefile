@@ -14,11 +14,8 @@ project1: ${OBJ_FILES}
 	${CXX} ${CXXFLAGS} ${OBJ_FILES} -o $@ ${LIBRARIES}
 
 clean:
-	rm -f core project1 ${OBJ_FILES}
+	rm -f project1 ${OBJ_FILES}
 
-#
-# This might work to create the submission tarball in the formal I asked for.
-#
 submit:
 	rm -f project1 ${OBJ_FILES}
 	mkdir `whoami`
