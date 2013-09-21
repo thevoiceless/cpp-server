@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <string.h>
+#include <strings.h>
 #include <errno.h>
 
 #include <sys/socket.h>
@@ -13,5 +14,6 @@
 #include <cstdlib>
 #include <sstream>
 #include <fstream>
+#include <iterator>
 
 using namespace std;

@@ -69,9 +69,39 @@ string parseGET(const string& getRequest)
 // *  Send the content type and rest of the header. For this assignment you
 // *  only have to do TXT, HTML and JPG, but you can do others if you want.
 // ***************************************************************************
-bool sendHeader(const int sockfd)
+bool sendHeader(const int sockfd, const string& path)
 {
-	return false;
+	// stringstream header;
+	// string type = path.substr(path.rfind('.'));
+	// cout << type << endl;
+
+	// cout << getFileSize(path) << endl;
+
+	// header << "HTTP/1.1 200 OK\r\n";
+	// if (strcasecmp(type.c_str(), ".txt") == 0)
+	// {
+	// 	header << "Content-Type: text/plain\r\n";
+	// 	header << "Content-Length: " << getFileSize(path) << "\r\n";
+	// }
+	// else if (strcasecmp(type.c_str(), ".html") == 0)
+	// {
+	// 	header << "Content-Type: text/html\r\n";
+	// 	header << "Content-Length: " << getFileSize(path) << "\r\n";
+	// }
+	// else if (strcasecmp(type.c_str(), ".jpg") == 0 || strcasecmp(type.c_str(), ".jpeg") == 0)
+	// {
+	// 	header << "Content-Type: image/jpeg\r\n";
+	// 	header << "Content-Length: " << getFileSize(path) << "\r\n";
+	// }
+	// else
+	// {
+	// 	// Kind of cheating, since this includes the body as well
+	// 	string message = "Sorry, I don't know how to send that type of file (yet).";
+	// 	header << "Content-Type: text/html\r\n";
+	// 	header << "Content-Length: " << message.length() << "\r\n";
+	// 	header << "\r\n\r\n" << message;
+	// 	return false;
+	// }
 }
 
 // ***************************************************************************
@@ -81,6 +111,48 @@ bool sendHeader(const int sockfd)
 bool sendFile(const int sockfd, const string& filename)
 {
 	return false;
+}
+
+void buildResponse(const string& path, stringstream& response)
+{
+	string type = path.substr(path.rfind('.'));
+	bool knownType = true;
+
+	response << "HTTP/1.1 200 OK\r\n";
+	if (strcasecmp(type.c_str(), ".txt") == 0)
+	{
+		response << "Content-Type: text/plain\r\n";
+	}
+	else if (strcasecmp(type.c_str(), ".html") == 0)
+	{
+		response << "Content-Type: text/html\r\n";
+	}
+	else if (strcasecmp(type.c_str(), ".jpg") == 0 || strcasecmp(type.c_str(), ".jpeg") == 0)
+	{
+		response << "Content-Type: image/jpeg\r\n";
+	}
+	else
+	{
+		knownType = false;
+		string message = "Sorry, I don't know how to send that type of file (yet).";
+		response << "Content-Type: text/html\r\n";
+		response << "Content-Length: " << message.length() << "\r\n\n";
+		response << message;
+	}
+
+	if (knownType)
+	{
+		response << "Content-Length: " << getFileSize(path.c_str()) << "\r\n\r\n";
+		vector<char> bytes = readAllBytes(path.c_str());
+		copy(bytes.begin(), bytes.end(), ostream_iterator<char>(response, ""));
+	}
+
+	cout << response.str() << endl;
+}
+
+void sendResponse(stringstream& response)
+{
+
 }
 
 // ***************************************************************************
@@ -137,10 +209,13 @@ void* processRequest(void* arg)
 		else if (isFile(requestedPath))
 		{
 			cout << "That's a file, sending it" << endl;
-			// *******************************************************
-			// * Build & send the header.
-			// *******************************************************
-			sendHeader(sockfd);
+			stringstream response;
+			buildResponse(requestedPath, response);
+			sendResponse(response);
+
+
+			// Build & send the header.
+			sendHeader(sockfd, requestedPath);
 			if (DEBUG)
 			{
 				cout << "Header sent" << endl;
@@ -149,7 +224,7 @@ void* processRequest(void* arg)
 			// *******************************************************
 			// * Send the file
 			// *******************************************************
-			sendFile(sockfd,requestedPath);
+			sendFile(sockfd, requestedPath);
 			if (DEBUG)
 			{
 				cout << "File sent" << endl;

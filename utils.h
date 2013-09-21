@@ -14,7 +14,7 @@ using namespace std;
 
 // http://stackoverflow.com/a/236803/1693087
 // Split 's' based on 'delim'
-vector<string> split(const string &s, char delim)
+vector<string> split(const string &s, const char delim)
 {
 		vector<string> tokens;
 		stringstream ss(s);
@@ -77,7 +77,7 @@ string getCurrentDirectory()
 
 // http://stackoverflow.com/a/4204758/1693087
 // Return the contents (files and directories) of a given directory
-vector<string> getDirectoryContents(string& path, bool showHidden = false)
+vector<string> getDirectoryContents(const string& path, bool showHidden = false)
 {
 	vector<string> entries;
 	string cur(".");
@@ -89,23 +89,6 @@ vector<string> getDirectoryContents(string& path, bool showHidden = false)
 	{
 		while ((dir = readdir(d)) != NULL)
 		{
-			// Ignore "." and ".."
-			// if (cur.compare(dir->d_name) != 0 && up.compare(dir->d_name) != 0)
-			// {
-			// 	// Ignore files starting with "." if not showing hidden files
-			// 	if (dir->d_name[0] == '.')
-			// 	{
-			// 		if (showHidden)
-			// 		{
-			// 			entries.push_back(dir->d_name);
-			// 		}
-			// 	}
-			// 	else
-			// 	{
-			// 		entries.push_back(dir->d_name);
-			// 	}
-			// }
-
 			// Ignore "." and ".."
 			if (cur.compare(dir->d_name) == 0 || up.compare(dir->d_name) == 0)
 			{
@@ -122,4 +105,28 @@ vector<string> getDirectoryContents(string& path, bool showHidden = false)
 		closedir(d);
 	}
 	return entries;
+}
+
+// http://www.cplusplus.com/forum/windows/10853/#msg50985
+// Return the size (in bytes) of the given file
+long getFileSize(const char* path)
+{
+	struct stat filestatus;
+	stat(path, &filestatus);
+	return filestatus.st_size;
+}
+
+// http://codereview.stackexchange.com/a/22907
+// Read and return all of the bytes in a file
+vector<char> readAllBytes(const char* filename)
+{
+    ifstream ifs(filename, ios::binary|ios::ate);
+    ifstream::pos_type pos = ifs.tellg();
+
+    vector<char> result(pos);
+
+    ifs.seekg(0, ios::beg);
+    ifs.read(&result[0], pos);
+
+    return result;
 }
