@@ -64,10 +64,6 @@ bool isFile(const string& filename)
 		return true;
 	}
 	return false;
-	// if (stat(filename.c_str(), &st) == 0)
-	// 	if (st.st_mode & S_IFREG != 0)
-	// 		printf("%s is a file\n", filename.c_str());
-
 }
 
 // http://stackoverflow.com/questions/143174/how-do-i-get-the-directory-that-a-program-is-running-from/145309#145309

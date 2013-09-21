@@ -87,9 +87,9 @@ bool sendFile(const int sockfd, const string& filename)
 // * send404(int sockfd)
 // *  Send the whole error page.  I can really say anything you like.
 // ***************************************************************************
-bool send404(const int sockfd)
+void send404(const int sockfd)
 {
-	return false;
+	
 }
 
 // Processes incoming request, delegates to the appropriate functions
