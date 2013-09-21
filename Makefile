@@ -21,3 +21,4 @@ submit:
 	mkdir rimoses
 	cp Makefile README.txt *.h *.cc rimoses
 	tar cf rimoses.tar rimoses
+	rm -rf rimoses
