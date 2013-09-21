@@ -56,22 +56,12 @@ string readRequest(const int sockfd)
 // NOTE: No filesystem restrictions, and path is relative to current directory
 string parseGET(const string& getRequest)
 {
+	// Split tokens based on whitespace, path will be the second one
 	vector<string> tokens = split(getRequest, ' ');
 	string path = tokens[1];
-	int startPos = 0;
+	// Replace HTML-encoded spaces
 	replaceAll(path, "%20", " ");
-	cout << path << endl;
-	return "";
-}
-
-// ***************************************************************************
-// * fileExists()
-// *  Simple utility function I use to test to see if the file really
-// *  exists.  Probably would have been simpler just to put it inline.
-// ***************************************************************************
-bool fileExists(const string& filename)
-{
-	return false;
+	return getCurrentDirectory().append(path);
 }
 
 // ***************************************************************************
@@ -112,7 +102,6 @@ void* processRequest(void* arg)
 		cout << "We are in the thread with fd = " << sockfd << endl;
 	}
 
-
 	// Read the request
 	string request = readRequest(sockfd);
 	if (DEBUG)
@@ -128,17 +117,21 @@ void* processRequest(void* arg)
 	if (reqType.find("GET") != string::npos)
 	{
 		// Parse out the requested resource
-		string requestedFile = parseGET(reqType);
+		string requestedPath = parseGET(reqType);
 		if (DEBUG)
 		{
-			cout << "The file they want is " << requestedFile << endl;
+			cout << "The requested resource is " << requestedPath << endl;
 		}
 
-		// *******************************************************
-		// * Send the file
-		// *******************************************************
-		if (fileExists(requestedFile))
+		// If a directory is requested, return its contents
+		if (isDir(requestedPath))
 		{
+			cout << "That's a directory, sending contents" << endl;
+		}
+		// If just a file is requested, send it
+		else if (isFile(requestedPath))
+		{
+			cout << "That's a file, sending it" << endl;
 			// *******************************************************
 			// * Build & send the header.
 			// *******************************************************
@@ -151,7 +144,7 @@ void* processRequest(void* arg)
 			// *******************************************************
 			// * Send the file
 			// *******************************************************
-			sendFile(sockfd,requestedFile);
+			sendFile(sockfd,requestedPath);
 			if (DEBUG)
 			{
 				cout << "File sent" << endl;
@@ -164,7 +157,7 @@ void* processRequest(void* arg)
 			// *******************************************************
 			if (DEBUG)
 			{
-				cout << "File " << requestedFile << " does not exist." << endl;
+				cout << "File " << requestedPath << " does not exist." << endl;
 			}
 			send404(sockfd);
 			if (DEBUG)
