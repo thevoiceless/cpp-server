@@ -5,6 +5,34 @@
 #define PORT 8504
 #define DEBUG 1
 
+// Wrap "content" in HTML tags with doctype
+string wrapHTML(const string& content)
+{
+	stringstream html;
+	html << "<!DOCTYPE html><html>";
+	html << content;
+	html << "</html>";
+	return html.str();
+}
+
+string wrapHead(const string& title)
+{
+	stringstream html;
+	html << "<head><title>";
+	html << title;
+	html << "</title></head>";
+	return html.str();
+}
+
+string wrapBody(const string& body)
+{
+	stringstream html;
+	html << "<body>";
+	html << body;
+	html << "</body>";
+	return html.str();
+}
+
 // Read the entire request from the socket and return it
 string readRequest(const int sockfd)
 {
@@ -60,52 +88,86 @@ string parseGET(const string& getRequest)
 	string path = tokens[1];
 	// Replace HTML-encoded spaces
 	replaceAll(path, "%20", " ");
+	if (*path.rbegin() == '/')
+	{
+		path.erase(path.end() - 1);
+	}
 	return path;
 }
 
 // Build the HTTP response, headers and body
-void buildResponse(const string& path, stringstream& response)
+void buildResponse(const string& path, stringstream& response, bool isDir = false)
 {
-	// Determine the type of resource requested
-	string type = path.substr(path.rfind('.'));
-	// Assume we know how to handle this type
-	bool knownType = true;
-
 	// Assume 200 OK
 	response << "HTTP/1.1 200 OK\r\n";
 
-	// Plain text
-	if (strcasecmp(type.c_str(), ".txt") == 0)
-	{
-		response << "Content-Type: text/plain\r\n";
-	}
-	// HTML
-	else if (strcasecmp(type.c_str(), ".html") == 0)
+	// Directory
+	if (isDir)
 	{
 		response << "Content-Type: text/html\r\n";
+
+		// If listing the directory, the "path" parameter will be the relative path
+		vector<string> contents = getDirectoryContents(getCurrentDirectory().append(path));
+		
+		stringstream htmlBody;
+		htmlBody << "<h1>" << path << "</h1>";
+		htmlBody << "<ul>";
+		for (vector<string>::iterator i = contents.begin(); i != contents.end(); ++i)
+		{
+			htmlBody << "<li>" << path << "/" << *i << "</li>";
+		}
+		htmlBody << "</ul>";
+
+		stringstream content;
+		content << wrapHTML(wrapHead("Directory listing for " + path).append(wrapBody(htmlBody.str())));
+		content.seekp(0, ios::end);
+
+		response << "Content-Length: " << content.tellp() << "\r\n\r\n";
+
+		response << content.str();
 	}
-	// JPEG
-	else if (strcasecmp(type.c_str(), ".jpg") == 0 || strcasecmp(type.c_str(), ".jpeg") == 0)
-	{
-		response << "Content-Type: image/jpeg\r\n";
-	}
-	// Something we don't know how to send yet
+	// File
 	else
 	{
-		knownType = false;
-		string message = "Sorry, I don't know how to send that type of file (yet).";
-		response << "Content-Type: text/html\r\n";
-		response << "Content-Length: " << message.length() << "\r\n\n";
-		response << message;
+		// Determine the type of resource requested
+		string type = path.substr(path.rfind('.'));
+		// Assume we know how to handle this type
+		bool knownType = true;
+
+		// Plain text
+		if (strcasecmp(type.c_str(), ".txt") == 0)
+		{
+			response << "Content-Type: text/plain\r\n";
+		}
+		// HTML
+		else if (strcasecmp(type.c_str(), ".html") == 0)
+		{
+			response << "Content-Type: text/html\r\n";
+		}
+		// JPEG
+		else if (strcasecmp(type.c_str(), ".jpg") == 0 || strcasecmp(type.c_str(), ".jpeg") == 0)
+		{
+			response << "Content-Type: image/jpeg\r\n";
+		}
+		// Something we don't know how to send yet
+		else
+		{
+			knownType = false;
+			string message = "Sorry, I don't know how to send that type of file (yet).";
+			response << "Content-Type: text/html\r\n";
+			response << "Content-Length: " << message.length() << "\r\n\n";
+			response << message;
+		}
+
+		// If we know how to handle this type of resource, add it to the response
+		if (knownType)
+		{
+			response << "Content-Length: " << getFileSize(path.c_str()) << "\r\n\r\n";
+			vector<char> bytes = readAllBytes(path.c_str());
+			copy(bytes.begin(), bytes.end(), ostream_iterator<char>(response));
+		}
 	}
 
-	// If we know how to handle this type of resource, add it to the response
-	if (knownType)
-	{
-		response << "Content-Length: " << getFileSize(path.c_str()) << "\r\n\r\n";
-		vector<char> bytes = readAllBytes(path.c_str());
-		copy(bytes.begin(), bytes.end(), ostream_iterator<char>(response));
-	}
 }
 
 // Write the response to the socket
@@ -124,6 +186,7 @@ bool sendResponse(const int sockfd, stringstream& response)
 // Build a 404 response
 void build404(const int sockfd, const string& path)
 {
+	//wrapHTML(wrapHead("Resource does not exist").append(wrapBody("The requested resource " + path + " could not be found.")))
 	string message = "<!DOCTYPE html><html><head><title>Resource does not exist</title></head><body>The requested resource " + path + " could not be found.</body></html>";
 	stringstream response;
 
@@ -161,8 +224,8 @@ void* processRequest(void* arg)
 	if (reqType.find("GET") != string::npos)
 	{
 		// Parse out the requested resource
-		string localPath = parseGET(reqType);
-		string requestedPath = getCurrentDirectory().append(localPath);
+		string relPath = parseGET(reqType);
+		string requestedPath = getCurrentDirectory().append(relPath);
 		if (DEBUG)
 		{
 			cout << "The requested resource is " << requestedPath << endl;
@@ -177,6 +240,8 @@ void* processRequest(void* arg)
 			{
 				cout << *i << endl;
 			}
+
+			buildResponse(relPath, response, true);
 		}
 		// If just a file is requested, send it
 		else if (isFile(requestedPath))
@@ -193,7 +258,7 @@ void* processRequest(void* arg)
 			{
 				cout << "Resource " << requestedPath << " does not exist." << endl;
 			}
-			build404(sockfd, localPath);
+			build404(sockfd, relPath);
 			if (DEBUG)
 			{
 				cout << "Error message sent." << endl;
