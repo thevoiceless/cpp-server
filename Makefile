@@ -18,6 +18,6 @@ clean:
 
 submit:
 	rm -f project1 ${OBJ_FILES}
-	mkdir `whoami`
-	cp Makefile README.txt *.h *.cc `whoami`
-	tar cf `whoami`.tar `whoami`
+	mkdir rimoses
+	cp Makefile README.txt *.h *.cc rimoses
+	tar cf rimoses.tar rimoses

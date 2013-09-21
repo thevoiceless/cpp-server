@@ -199,17 +199,28 @@ bool sendResponse(const int sockfd, stringstream& response)
 }
 
 // Build a 404 response
-void build404(const int sockfd, const string& path)
+void build404(const string& path, stringstream& response)
 {
-	string message = wrapHTML(wrapHead("Resource does not exist").append(wrapBody("The requested resource " + path + " could not be found.")));
-	stringstream response;
+	string message = wrapHTML(wrapHead("Resource does not exist").append(wrapBody("The requested resource "
+		+ path + " could not be found.<br><br><i>You're off the edge of the map, mate. Here there be monsters!</i>")));
 
 	response << "HTTP/1.1 404 Not Found\r\n";
 	response << "Content-Type: text/html\r\n";
 	response << "Content-Length: " << message.length() << "\r\n\n";
 	response << message;
+}
 
-	sendResponse(sockfd, response);
+// Build a 418 response (I'm a teapot)
+// See https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
+void build418(stringstream& response)
+{
+	string message = wrapHTML(wrapHead(":(").append(wrapBody("<center><h1>I'm sorry, Dave. I'm afraid I can't do that.</h1></center>")));
+
+	response << "HTTP/1.1 418 I'm a teapot\r\n";
+	response << "Content-Type: text/html\r\n";
+	response << "Content-Length: " << message.length() << "\r\n\r\n";
+
+	response << message;
 }
 
 // Processes incoming request, delegates to the appropriate functions
@@ -268,19 +279,21 @@ void* processRequest(void* arg)
 			{
 				cout << "Resource " << requestedPath << " does not exist." << endl;
 			}
-			build404(sockfd, relPath);
-			if (DEBUG)
-			{
-				cout << "Error message sent." << endl;
-			}
+			build404(relPath, response);
 		}
+	}
+	// Not GET
+	else
+	{
+		cout << "I can't do that" << endl;
+		build418(response);
+	}
 
-		// Send the response
-		sendResponse(sockfd, response);
-		if (DEBUG)
-		{
-			cout << "Response sent" << endl;
-		}
+	// Send the response
+	sendResponse(sockfd, response);
+	if (DEBUG)
+	{
+		cout << "Response sent" << endl;
 	}
 
 	if (DEBUG)
