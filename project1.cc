@@ -15,6 +15,7 @@ string wrapHTML(const string& content)
 	return html.str();
 }
 
+// Wrap "title" in head and title tags
 string wrapHead(const string& title)
 {
 	stringstream html;
@@ -24,6 +25,7 @@ string wrapHead(const string& title)
 	return html.str();
 }
 
+// Wrap "body" in body tags
 string wrapBody(const string& body)
 {
 	stringstream html;
@@ -88,36 +90,46 @@ string parseGET(const string& getRequest)
 	string path = tokens[1];
 	// Replace HTML-encoded spaces
 	replaceAll(path, "%20", " ");
-	if (*path.rbegin() == '/')
-	{
-		path.erase(path.end() - 1);
-	}
 	return path;
 }
 
 // Build the HTTP response, headers and body
-void buildResponse(const string& path, stringstream& response, bool isDir = false)
+void buildResponse(string& path, stringstream& response, bool isDirectory = false)
 {
 	// Assume 200 OK
 	response << "HTTP/1.1 200 OK\r\n";
 
-	// Directory
-	if (isDir)
+	// Directory, list contents
+	if (isDirectory)
 	{
+		// Aesthetics: Add trailing "/" to path if it doesn't exist
+		if (*path.rbegin() != '/')
+		{
+			path += "/";
+		}
+
 		response << "Content-Type: text/html\r\n";
 
-		// If listing the directory, the "path" parameter will be the relative path
-		vector<string> contents = getDirectoryContents(getCurrentDirectory().append(path));
+		// This is a directory, so the "path" parameter will be the relative path
+		// That means we need the current directory to get the absolute path
+		string cwd = getCurrentDirectory();
 		
+		// Build a list of the directory contents
+		vector<string> contents = getDirectoryContents(cwd + path);
 		stringstream htmlBody;
 		htmlBody << "<h1>" << path << "</h1>";
 		htmlBody << "<ul>";
 		for (vector<string>::iterator i = contents.begin(); i != contents.end(); ++i)
 		{
-			htmlBody << "<li>" << path << "/" << *i << "</li>";
+			string item = "<li>" + path + *i + "</li>";
+			// Aesthetics: Differentiate directories from files by appending a "/"
+			string dirEndingSlash = isDir(cwd + path + *i) ? "/" : "";
+			// Link to the content
+			htmlBody << "<li><a href=\"" << path + *i << "\">" << *i + dirEndingSlash << "</a></li>";
 		}
 		htmlBody << "</ul>";
 
+		// Generate the HTML for the page
 		stringstream content;
 		content << wrapHTML(wrapHead("Directory listing for " + path).append(wrapBody(htmlBody.str())));
 		content.seekp(0, ios::end);
@@ -126,11 +138,13 @@ void buildResponse(const string& path, stringstream& response, bool isDir = fals
 
 		response << content.str();
 	}
-	// File
+	// File, send it
 	else
 	{
 		// Determine the type of resource requested
-		string type = path.substr(path.rfind('.'));
+		int spot = path.rfind('.');
+		// There may not be a file extension
+		string type = spot > 0 ? path.substr(spot) : "";
 		// Assume we know how to handle this type
 		bool knownType = true;
 
@@ -150,6 +164,7 @@ void buildResponse(const string& path, stringstream& response, bool isDir = fals
 			response << "Content-Type: image/jpeg\r\n";
 		}
 		// Something we don't know how to send yet
+		// TODO: Check MIME type
 		else
 		{
 			knownType = false;
@@ -186,8 +201,7 @@ bool sendResponse(const int sockfd, stringstream& response)
 // Build a 404 response
 void build404(const int sockfd, const string& path)
 {
-	//wrapHTML(wrapHead("Resource does not exist").append(wrapBody("The requested resource " + path + " could not be found.")))
-	string message = "<!DOCTYPE html><html><head><title>Resource does not exist</title></head><body>The requested resource " + path + " could not be found.</body></html>";
+	string message = wrapHTML(wrapHead("Resource does not exist").append(wrapBody("The requested resource " + path + " could not be found.")));
 	stringstream response;
 
 	response << "HTTP/1.1 404 Not Found\r\n";
@@ -235,12 +249,8 @@ void* processRequest(void* arg)
 		if (isDir(requestedPath))
 		{
 			cout << "That's a directory, sending contents" << endl;
-			vector<string> contents = getDirectoryContents(requestedPath);
-			for (vector<string>::iterator i = contents.begin(); i != contents.end(); ++i)
-			{
-				cout << *i << endl;
-			}
 
+			// Pass relPath so that both relative and aboslute paths can be determined in the function
 			buildResponse(relPath, response, true);
 		}
 		// If just a file is requested, send it

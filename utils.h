@@ -68,7 +68,7 @@ bool isFile(const string& filename)
 }
 
 // http://stackoverflow.com/a/145309/1693087
-// Return current directory
+// Return current directory (where this code is running)
 string getCurrentDirectory()
 {
 	char currentPath[FILENAME_MAX];
