@@ -89,7 +89,7 @@ bool sendFile(const int sockfd, const string& filename)
 // ***************************************************************************
 void send404(const int sockfd)
 {
-	
+
 }
 
 // Processes incoming request, delegates to the appropriate functions
@@ -127,6 +127,11 @@ void* processRequest(void* arg)
 		if (isDir(requestedPath))
 		{
 			cout << "That's a directory, sending contents" << endl;
+			vector<string> contents = getDirectoryContents(requestedPath);
+			for (vector<string>::iterator i = contents.begin(); i != contents.end(); ++i)
+			{
+				cout << *i << endl;
+			}
 		}
 		// If just a file is requested, send it
 		else if (isFile(requestedPath))
